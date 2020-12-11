@@ -5,8 +5,11 @@
 # Z_hat, Approximation of the complete matrix
 # Omega, indices of observed entries
 
-Error <- function(U, V, Z, Z_hat, Omega){
+Error <- function(U, V, Z, Z_hat, X){
+  Omega <- X
+  Omega[!is.na(Omega)] <- 1
+  Omega[is.na(Omega)] <- 0
   test <- Frobenius(Complementary(U %*% t(V) - Z_hat, Omega)) / Frobenius(Complementary(U %*% t(V), Omega))
   training <- Frobenius(Projection(Z - Z_hat, Omega)) / Frobenius(Projection(Z, Omega))
-  return(list(test.error = test, training.error = training))
+  return(c(test, training))
 }

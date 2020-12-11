@@ -4,7 +4,7 @@
 # X, observed data, incomplete matrix, unobserved entries are represented as NA
 # Z, solution
 
-SoftImpute <- function(X, lambda0, K = 100, converge = 0.01, MAX = 20){
+SoftImpute <- function(X, lambda0, K = 1000, converge = 0.01, MAX = 30){
   
   # indices of observed entries
   Omega <- X
@@ -17,6 +17,8 @@ SoftImpute <- function(X, lambda0, K = 100, converge = 0.01, MAX = 20){
   n <- ncol(X)
   lambda <- seq(from = lambda0, to = 0, length.out = K)
   Z <- array(dim = c(K, m, n))
+  NuclearNorm <- vector()
+  Rank <- vector()
   
   s <- 1 # counter
   
@@ -39,10 +41,12 @@ SoftImpute <- function(X, lambda0, K = 100, converge = 0.01, MAX = 20){
     }
     
     Z[s, , ] <- Z_new
+    NuclearNorm <- c(NuclearNorm, sum(svd(Z_new)$d))
+    Rank <- c(Rank, rankMatrix(Z_new)[1])
     s <- s + 1
     
   }
   
-  return(Z)
+  return(list(Z_hat = Z, NuclearNorm = NuclearNorm, Rank = Rank))
   
 }

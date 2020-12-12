@@ -26,8 +26,7 @@ lambda0
 
 SOFT-IMPUTE:
 ```{r}
-result <- SoftImpute(X = testdata$X, lambda0 = lambda0)
-
+result <- SoftImpute(X = testdata$X, lambda = lambda0)
 attach(result)
 Z_hat[1, 1:6, 1:6]
 NuclearNorm[1:6]

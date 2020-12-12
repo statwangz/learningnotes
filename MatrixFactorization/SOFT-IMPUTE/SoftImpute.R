@@ -4,7 +4,7 @@
 # X, observed data, incomplete matrix, unobserved entries are represented as NA
 # Z, solution
 
-SoftImpute <- function(X, lambda0, K = 1000, converge = 0.001, MAX = 100){
+SoftImpute <- function(X, lambda, K = 1000, converge = 0.001, MAX = 100){
   
   # indices of observed entries
   Omega <- X
@@ -15,7 +15,8 @@ SoftImpute <- function(X, lambda0, K = 1000, converge = 0.001, MAX = 100){
   
   m <- nrow(X)
   n <- ncol(X)
-  lambda <- seq(from = lambda0, to = 0, length.out = K)
+  
+  lambda <- seq(from = lambda, to = 0, length.out = K)
   Z <- array(dim = c(K, m, n))
   NuclearNorm <- vector()
   Rank <- vector()
@@ -31,7 +32,7 @@ SoftImpute <- function(X, lambda0, K = 1000, converge = 0.001, MAX = 100){
       
       Z_new <- SoftThresholding(ProX + Complementary(Z_old, Omega), lambda[s])
       
-      if((Frobenius(Z_new - Z_old) / Frobenius(Z_new) < converge) | t == MAX){
+      if(Frobenius(Z_new - Z_old) / Frobenius(Z_new) < converge || t == MAX){
         break
       }
       
@@ -47,6 +48,6 @@ SoftImpute <- function(X, lambda0, K = 1000, converge = 0.001, MAX = 100){
     
   }
   
-  return(list(Z_hat = Z, NuclearNorm = NuclearNorm, Rank = Rank))
+  return(list(Z_hat = Z, NuclearNorm = NuclearNorm, Rank = Rank, lambda = lambda))
   
 }

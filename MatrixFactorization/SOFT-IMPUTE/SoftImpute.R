@@ -4,7 +4,7 @@
 # X, observed data, incomplete matrix, unobserved entries are represented as NA
 # Z, solution
 
-SoftImpute <- function(X, lambda0, K = 1000, converge = 0.001, MAX = 30){
+SoftImpute <- function(X, lambda0, K = 1000, converge = 0.001, MAX = 100){
   
   # indices of observed entries
   Omega <- X

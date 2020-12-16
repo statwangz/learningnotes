@@ -31,6 +31,7 @@ attach(result)
 Z_hat[1, 1:6, 1:6]
 NuclearNorm[1:6]
 Rank[1:6]
+lambda[1:6]
 detach(result)
 ```
 

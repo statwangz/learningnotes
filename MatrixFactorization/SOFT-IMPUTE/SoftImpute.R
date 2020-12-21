@@ -16,9 +16,8 @@ SoftImpute <- function(X, lambda, K = 1000, converge = 1e-5, MAX = 100){
   m <- nrow(X)
   n <- ncol(X)
   
-  # lambda <- seq(from = lambda^2, to = 0, length.out = K)
-  # lambda <- sqrt(lambda)
   lambda <- seq(from = lambda, to = 0, length.out = K)
+  # lambda <- exp(seq(from = log(lambda), to = 0, length.out = K)) ## log-space
   Z <- array(dim = c(K, m, n))
   NuclearNorm <- vector()
   Rank <- vector()

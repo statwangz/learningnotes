@@ -1,0 +1,60 @@
+---
+title: "Example"
+author: "Zhiwei Wang"
+date: "2020/12/11"
+output: html_document
+---
+
+```{r}
+library(Matrix)
+library(ggplot2)
+```
+
+Generate test data, a matrix with unobserved entries:
+```{r}
+set.seed(20201223)
+testdata <- TestData()
+testdata$Z[1:6, 1:6]
+testdata$X[1:6, 1:6]
+```
+
+Compute the smallest value for lambda such that SoftImpute(X,lambda) returns the zero solution:
+```{r}
+lambda0 <- Lambda0(testdata$X)
+lambda0
+```
+
+softImpute-ALS:
+```{r}
+result_sials <- softImpute_ALS_seq(testdata$X, lambda0)
+attach(result_sials)
+NuclearNorm[1:6]
+Rank[1:6]
+lambda[1:6]
+detach(result_sials)
+```
+
+Compute the test error and the training error:
+```{r}
+ErrorHere <- function(Z_hat){
+  Error(U = testdata$U, V = testdata$V, Z = testdata$Z, Z_hat = Z_hat, X = testdata$X)
+}
+error <- apply(result_sials$Z_hat, MARGIN = 1, FUN = ErrorHere)
+rownames(error) <- c("test", "training")
+```
+
+Visualization:
+```{r}
+ggplot(data = NULL, aes(x = result_sials$NuclearNorm, y = error["test", ])) +
+  geom_point() +
+  labs(title = "50% missing entries with SNR = 1, true rank = 10", x = "Nuclear Norm", y = "Test Error")
+ggplot(data = NULL, aes(x = result_sials$NuclearNorm, y = error["training", ])) +
+  geom_point() +
+  labs(title = "50% missing entries with SNR = 1, true rank = 10", x = "Nuclear Norm", y = "Training Error")
+ggplot(data = NULL, aes(x = result_sials$Rank, y = error["test", ])) +
+  geom_point() +
+  labs(title = "50% missing entries with SNR = 1, true rank = 10", x = "Rank", y = "Test Error")
+ggplot(data = NULL, aes(x = result_sials$Rank, y = error["training", ])) +
+  geom_point() +
+  labs(title = "50% missing entries with SNR = 1, true rank = 10", x = "Rank", y = "Training Error")
+```

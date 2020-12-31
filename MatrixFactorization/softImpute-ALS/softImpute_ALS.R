@@ -4,7 +4,7 @@
 # X, observed data, incomplete matrix, unobserved entries are represented as NA
 # Z, solution
 
-softImpute_ALS <- function(X, lambda, converge = 1e-7, MAX = 100){
+softImpute_ALS <- function(X, lambda, converge = 1e-5, MAX = 100){
   
   # indices of observed entries
   Omega <- X
@@ -31,8 +31,17 @@ softImpute_ALS <- function(X, lambda, converge = 1e-7, MAX = 100){
   repeat{
     
     X_star <- ProX + Complementary(A %*% t(B), Omega)
+    if(rankMatrix(t(B) %*% B + lambda * diag(r)) < r){
+      A_new <- A
+      B_new <- B
+      break
+    }
     A_new <- X_star %*% B %*% solve(t(B) %*% B + lambda * diag(r))
     X_star <- ProX + Complementary(A_new %*% t(B), Omega)
+    if(rankMatrix(t(A_new) %*% A_new + lambda * diag(r)) < r){
+      B_new <- B
+      break
+    }
     B_new <- t(X_star) %*% A_new %*% solve(t(A_new) %*% A_new + lambda * diag(r))
     
     if(Frobenius(A_new - A) / Frobenius(A) + Frobenius(B_new - B) / Frobenius(B) < converge || t == MAX){
@@ -45,8 +54,10 @@ softImpute_ALS <- function(X, lambda, converge = 1e-7, MAX = 100){
     
   }
   
-  rank1 <- sum(svd(A%*%t(B))$d > lambda)
-  rank2 <- rankMatrix(A%*%t(B))[1]
-  return(list(A = A, B = B, rank1 = rank1, rank2 = rank2, r = r))
+  svd_Z <- svd(A %*% t(B))
+  Rank <- sum(svd_Z$d > lambda)
+  Z_hat <- svd_Z$u[ , 1 : Rank] %*% diag(svd_Z$d[1:Rank]) %*% t(svd_Z$v)[1 : Rank, ]
+  
+  return(list(Z_hat = Z_hat, A = A, B = B, Rank = Rank, r = r))
   
 }

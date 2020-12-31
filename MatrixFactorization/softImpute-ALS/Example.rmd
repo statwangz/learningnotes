@@ -28,9 +28,9 @@ softImpute-ALS:
 ```{r}
 result_sials <- softImpute_ALS_seq(testdata$X, lambda0)
 attach(result_sials)
-NuclearNorm[1:6]
-Rank[1:6]
-lambda[1:6]
+NuclearNorm[501:506]
+Rank[501:506]
+lambda[501:506]
 detach(result_sials)
 ```
 
@@ -40,6 +40,8 @@ ErrorHere <- function(Z_hat){
   Error(U = testdata$U, V = testdata$V, Z = testdata$Z, Z_hat = Z_hat, X = testdata$X)
 }
 error <- apply(result_sials$Z_hat, MARGIN = 1, FUN = ErrorHere)
+error2 <- apply(result_sials$Z_hat2, MARGIN = 1, FUN = ErrorHere)
+error3 <- apply(result_sials$Z_hat3, MARGIN = 1, FUN = ErrorHere)
 rownames(error) <- c("test", "training")
 ```
 
@@ -57,4 +59,44 @@ ggplot(data = NULL, aes(x = result_sials$Rank, y = error["test", ])) +
 ggplot(data = NULL, aes(x = result_sials$Rank, y = error["training", ])) +
   geom_point() +
   labs(title = "50% missing entries with SNR = 1, true rank = 10", x = "Rank", y = "Training Error")
+```
+
+```{r}
+error_12 <- error2[1, ] - error[1, ]
+ggplot(data = NULL, aes(x= 151:1000, y = error_12[151:1000])) +
+  geom_point()
+error_13 <- error3[1, ] - error[1, ]
+ggplot(data = NULL, aes(x= 151:1000, y = error_13[151:1000])) +
+  geom_point()
+```
+
+```{r}
+system.time(softImpute(testdata$X, lambda = 8))
+system.time(softImpute_ALS(testdata$X, lambda = 8))
+```
+
+```{r}
+large <- TestData(1000, 1000, 50)
+lambda_large <- Lambda0(large$X)
+lambda_large
+```
+
+```{r}
+large_test <- softImpute_seq(large$X, lambda = 500, K = 30, converge = 1e-3)
+ErrorLarge <- function(Z_hat){
+    Error(U = large$U, V = large$V, Z = large$Z, Z_hat = Z_hat, X = large$X)
+}
+error_large <- apply(re$Z_hat, MARGIN = 1, FUN = ErrorLarge)
+plot(re$lambda, error_large[1, ])
+plot(re$lambda, error_large[2, ])
+```
+
+```{r}
+system.time(result_large <- softImpute_ALS(large$X, lambda = 50, converge = 1e-3))
+Error(large$U, large$V, large$Z, result_large$Z_hat, large$X)
+```
+
+```{r}
+system.time(result_large <- softImpute(large$X, lambda = 300, converge = 1e-3))
+Error(large$U, large$V, large$Z, result_large$Z_hat, large$X)
 ```

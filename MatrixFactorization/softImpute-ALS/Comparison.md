@@ -94,7 +94,7 @@ UpdateA <- function(i, B){
     A_i <- solve(BtB + lambda * diag(r)) %*% (t(B_submat) %*%  X_obs[i, nz_cols])
 }
 UpdateB <- function(j, A){
-    nz_rows <- c(1 : m)[ind_mat[i, ]]
+    nz_rows <- c(1 : m)[ind_mat[ , j]]
     A_submat <- A[nz_rows, ]
     AtA <- t(A_submat) %*% A_submat
     B_j <- solve(AtA + lambda * diag(r)) %*% (t(A_submat) %*%  X_obs[nz_rows, j])

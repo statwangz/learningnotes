@@ -1,0 +1,46 @@
+---
+title: "Experiments"
+author: "Zhiwei Wang"
+date: "2021/1/16"
+output: html_document
+---
+
+```{r}
+set.seed(20210116)
+data_11 <- TestData(m = 1000, n = 1000, r = 30) # 1000*1000, rank = 30, SNR = 1
+data_13 <- TestData(m = 1000, n = 3000, r = 50) # 1000*3000, rank = 50, SNR = 1
+data_11_10 <- TestData(m = 1000, n = 1000, r = 30, SNR = 10) # 1000*1000, rank = 30, SNR = 10
+```
+
+```{r}
+lambda_seq <- seq(5, 125, by = 10)
+training <- vector()
+test <- vector()
+iteration <- vector()
+time_seq <- vector()
+```
+
+data_11:
+```{r}
+for (i in 1 : length(lambda_seq)) {
+  res <- softImpute(data_11$X_observed, lambda_seq[i])
+  error <- Error(res$X_hat, data_11$U, data_11$V, data_11$X_observed)
+  test[i] <- error$test
+  training[i] <- error$training
+  iteration[i] <- res$iteration
+  time_seq[i] <- res$time[res$iteration]
+}
+
+res_11_df <- data.frame(lambda = lambda_seq, test = test, training = training, iteration = iteration, time = time_seq)
+res_11_df
+```
+
+Choose $\lambda = 10, 30, 50$.
+```{r}
+res_als_11 <- list(ALS(data_11$X_observed, r = 50, lambda = 10), ALS(data_11$X_observed, r = 50, lambda = 30), ALS(data_11$X_observed, r = 50, lambda = 50))
+
+res_si_11 <- list(softImpute(data_11$X_observed, 10), softImpute(data_11$X_observed, 30), softImpute(data_11$X_observed, 50))
+
+res_si_als_11 <- list(softImpute_ALS(data_11$X_observed, r = 50, lambda = 10), softImpute_ALS(data_11$X_observed, r = 50, lambda = 30), softImpute_ALS(data_11$X_observed, r = 50, lambda = 50))
+```
+

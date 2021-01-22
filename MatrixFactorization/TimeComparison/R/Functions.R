@@ -1,0 +1,217 @@
+## Functions:
+
+# projection of the matrix Y onto Omega (observed entries)
+Projection <- function(Y, Omega){
+  pro <- Y
+  pro[Omega == F] <- 0
+  return(pro)
+}
+
+# complementary projection
+Complementary <- function(Y, omega){
+  com <- Y
+  com[omega == T] <- 0
+  return(com)
+}
+
+# generate test data, a matrix with unobserved entries
+# m, nrows
+# n, ncols
+# r, rank
+# p, the proportion of unobserved entries to total
+# SNR, the ratio of the standard deviation of the entries to the standard deviation of the noise
+TestData <- function(m = 100, n = 100, r = 10, mu = 0, s = 1, p = 0.8, SNR = 1){
+  U <- matrix(rnorm(m * r, mean = mu, sd = s), m, r)
+  V <- matrix(rnorm(n * r, mean = mu, sd = s), n, r)
+  X_complete <- U %*% t(V) + matrix(rnorm(m * n, sd = s / SNR), m, n) # complete matrix with noise
+  X_observed <- X_complete
+  X_observed[sample(1 : (m * n), size = m * n * p)] <- NA # observed entries
+  return(list(U = U, V = V, X_complete = X_complete, X_observed = X_observed))
+}
+
+# compute the test error and the training error
+Error <- function(X_hat, U, V, X_observed){
+  Omega <- !is.na(X_observed)
+  test <- norm((U %*% t(V) - X_hat) * !Omega, "F")^2 / norm((U %*% t(V)) * !Omega, "F")^2
+  training <- sum((X_observed - X_hat)^2, na.rm = T) / sum(X_observed^2, na.rm = T)
+  return(list("test" = test, "training" = training))
+}
+
+## Alterating Least Square
+
+# compute the objective function
+ALS_obj <- function(X, A, B, lambda){
+  0.5 * sum((X - A %*% t(B))^2, na.rm = T) + 0.5 * lambda * (norm(A, "F")^2 + norm(B, "F")^2)
+}
+
+# X_observed, observed data, incomplete matrix, unobserved entries are represented as NA
+# A and B, solution
+ALS <- function(X_observed, r, lambda, converge = 1e-3, MAX = 1000){
+  
+  # indices of observed entries
+  Omega <- !is.na(X_observed)
+  
+  # initialize
+  m <- nrow(X_observed)
+  n <- ncol(X_observed)
+  A <- matrix(rnorm(m * r), m, r)
+  B <- matrix(rnorm(n * r), n, r)
+  
+  obj_prev <- ALS_obj(X_observed, A, B, lambda)
+  obj <- vector()
+  rel_obj <- vector()
+  time_vec <- vector()
+  
+  UpdateA <- function(i, B){
+    cols <- c(1 : n)[Omega[i, ]]
+    B_sub <- B[cols, ]
+    A_i <- solve(t(B_sub) %*% B_sub + lambda * diag(r)) %*% (t(B_sub) %*%  X_observed[i, cols])
+  }
+  UpdateB <- function(j, A){
+    rows <- c(1 : m)[Omega[ , j]]
+    A_sub <- A[rows, ]
+    B_j <- solve(t(A_sub) %*% A_sub + lambda * diag(r)) %*% (t(A_sub) %*%  X_observed[rows, j])
+  }
+  
+  t <- 0 # counter
+  start_time <- proc.time()[[3]]
+  
+  repeat{
+    
+    t <- t + 1
+    
+    A <- t(sapply(1 : m, FUN = UpdateA, B = B))
+    B <- t(sapply(1 : n, FUN = UpdateB, A = A))
+    
+    obj[t] <- ALS_obj(X_observed, A, B, lambda)
+    rel_obj[t] <- log(obj_prev / obj[t])
+    
+    if(rel_obj[t] < converge || t == MAX){
+      time_vec[t] <- proc.time()[[3]] - start_time
+      break
+    }
+    
+    obj_prev <- obj[t]
+    time_vec[t] <- proc.time()[[3]] - start_time
+    
+  }
+  
+  return(list("A" = A, "B" = B, "relative objevtive" = rel_obj, "objevtive" = obj, "time" = time_vec, "iteration" = t))
+  
+}
+
+## softImpute
+
+# soft-thresholding
+SoftThresholding <- function(d, lambda){
+  d_lambda <- d - lambda
+  d_lambda[d_lambda < 0] <- 0
+  return(d_lambda)
+}
+
+# compute the objective function
+softImpute_obj <- function(X, X_hat, d, lambda){
+  0.5 * sum((X - X_hat)^2, na.rm = TRUE) + lambda * sum(d)
+}
+
+# X_observed, observed data, incomplete matrix, unobserved entries are represented as NA
+# A and B, solution
+softImpute <- function(X_observed, lambda, converge = 1e-3, MAX = 1000){
+  
+  # indices of observed entries and projection
+  Omega <- !is.na(X_observed)
+  ProX <- Projection(X_observed, Omega)
+  
+  # initialize
+  m <- nrow(X_observed)
+  n <- ncol(X_observed)
+  X_hat <- matrix(0, nrow = m, ncol = n)
+  
+  obj_prev <- softImpute_obj(X_observed, X_hat, 0, lambda)
+  obj <- vector()
+  rel_obj <- vector()
+  time_vec <- vector()
+  
+  t <- 0 # counter
+  start_time <- proc.time()[[3]]
+  
+  repeat{
+    
+    t <- t + 1
+    
+    # update X_hat
+    svd_res <- svd(ProX + X_hat * !Omega)
+    S <- SoftThresholding(svd_res$d, lambda)
+    X_hat <- sweep(svd_res$u, MARGIN = 2, STATS = S, FUN = "*") %*% t(svd_res$v)
+    
+    obj[t] <- softImpute_obj(X_observed, X_hat, S, lambda)
+    rel_obj[t] <- log(obj_prev / obj[t])
+    
+    if(rel_obj[t] < converge || t == MAX){
+      time_vec[t] <- proc.time()[[3]] - start_time
+      break
+    }
+    
+    obj_prev <- obj[t]
+    time_vec[t] <- proc.time()[[3]] - start_time
+    
+  }
+  
+  return(list("X_hat" = X_hat, "relative objevtive" = rel_obj, "objevtive" = obj, "time" = time_vec, "iteration" = t))
+  
+}
+
+## softImpute-ALS:
+
+# # compute the objective function, the same as ALS
+# softImpute_ALS_obj <- function(X, A, B, lambda){
+#   0.5 * sum((X - A %*% t(B))^2, na.rm = T) + 0.5 * lambda * (norm(A, "F")^2 + norm(B, "F")^2)
+# }
+
+# X_observed, observed data, incomplete matrix, unobserved entries are represented as NA
+# A and B, solution
+softImpute_ALS <- function(X_observed, r, lambda, converge = 1e-3, MAX = 1000){
+  
+  # indices of observed entries and projection
+  Omega <- !is.na(X_observed)
+  ProX <- Projection(X_observed, Omega)
+  
+  # initialize
+  m <- nrow(X_observed)
+  n <- ncol(X_observed)
+  A <- matrix(rnorm(m * r), m, r)
+  B <- matrix(rnorm(n * r), n, r)
+  
+  obj_prev <- ALS_obj(X_observed, A, B, lambda)
+  obj <- vector()
+  rel_obj <- vector()
+  time_vec <- vector()
+  
+  t <- 0 # counter
+  start_time <- proc.time()[[3]]
+  
+  repeat{
+    
+    t <- t + 1
+    
+    X_star <- ProX + (A %*% t(B)) * !Omega
+    A <- X_star %*% B %*% solve(t(B) %*% B + lambda * diag(r))
+    X_star <- ProX + (A %*% t(B)) * !Omega
+    B <- t(X_star) %*% A %*% solve(t(A) %*% A + lambda * diag(r))
+    
+    obj[t] <- ALS_obj(X_observed, A, B, lambda)
+    rel_obj[t] <- log(obj_prev / obj[t])
+    
+    if(rel_obj[t] < converge || t == MAX){
+      time_vec[t] <- proc.time()[[3]] - start_time
+      break
+    }
+    
+    obj_prev <- obj[t]
+    time_vec[t] <- proc.time()[[3]] - start_time
+    
+  }
+  
+  return(list("A" = A, "B" = B, "relative objevtive" = rel_obj, "objevtive" = obj, "time" = time_vec, "iteration" = t))
+  
+}
